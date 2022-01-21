@@ -368,41 +368,41 @@ namespace RPGFlightmare
       
       
 
-      
-      // {
-      //   var tree_msg = new NetMQMessage();
-      //   var new_tree_msg = new NetMQMessage();
-      //   bool received_tree_packet = tree_subscrib.TryReceiveMultipartMessage(new TimeSpan(0, 0, connection_timeout_seconds), ref new_tree_msg);
-      //   //有数据正在接收
-      //   //while (tree_subscrib.TryReceiveMultipartMessage(ref new_tree_msg));
-      //   //等待数据接受完成,保证下一次更新不会进入判断
-      //   if (received_tree_packet)
-      //     {
-      //       if ("PLACETREE" == new_tree_msg[0].ConvertToString())
-      //       {
-      //         if (new_tree_msg.FrameCount >= tree_msg.FrameCount) { tree_msg = new_tree_msg; }
-      //         if (tree_msg.FrameCount != 2) {
-      //             tree_message = new TreeMessage_t();
-      //             tree_message.seed = 0.1f;
-      //             tree_message.bounding_origin = new List<float> { 0, 0 };
-      //             tree_message.bounding_area = new List<float> { 253, 253 };
-      //             tree_message.desity = (float)Math.Pow(253 / 7, 2);
-      //             EventParam events = new EventParam { treeMessage = tree_message };
-      //             terrainTreeManager1.TriggerEvent("placeTreeParam", events);
-      //         }
-      //         else{
-      //             tree_message = JsonConvert.DeserializeObject<TreeMessage_t>(tree_msg[1].ConvertToString());
-      //             EventParam events = new EventParam { treeMessage = tree_message };
-      //             terrainTreeManager1.TriggerEvent("placeTreeParam", events);
-      //             sendTreeReady();
-      //         }
-      //       }
-      //       else if ("RMTREE" == new_tree_msg[0].ConvertToString())
-      //       {
-      //           terrainTreeManager1.TriggerEvent("removeTree");
-      //       }
-      //     }
-      // }
+      if (tree_subscrib.HasIn)
+      {
+        var tree_msg = new NetMQMessage();
+        var new_tree_msg = new NetMQMessage();
+        bool received_tree_packet = tree_subscrib.TryReceiveMultipartMessage(new TimeSpan(0, 0, connection_timeout_seconds), ref new_tree_msg);
+        //有数据正在接收
+        //while (tree_subscrib.TryReceiveMultipartMessage(ref new_tree_msg));
+        //等待数据接受完成,保证下一次更新不会进入判断
+        if (received_tree_packet)
+          {
+            if ("PLACETREE" == new_tree_msg[0].ConvertToString())
+            {
+              if (new_tree_msg.FrameCount >= tree_msg.FrameCount) { tree_msg = new_tree_msg; }
+              if (tree_msg.FrameCount != 2) {
+                  tree_message = new TreeMessage_t();
+                  tree_message.seed = 0.1f;
+                  tree_message.bounding_origin = new List<float> { 0, 0 };
+                  tree_message.bounding_area = new List<float> { 253, 253 };
+                  tree_message.desity = (float)Math.Pow(253 / 7, 2);
+                  EventParam events = new EventParam { treeMessage = tree_message };
+                  terrainTreeManager1.TriggerEvent("placeTreeParam", events);
+              }
+              else{
+                  tree_message = JsonConvert.DeserializeObject<TreeMessage_t>(tree_msg[1].ConvertToString());
+                  EventParam events = new EventParam { treeMessage = tree_message };
+                  terrainTreeManager1.TriggerEvent("placeTreeParam", events);
+                  sendTreeReady();
+              }
+            }
+            else if ("RMTREE" == new_tree_msg[0].ConvertToString())
+            {
+                terrainTreeManager1.TriggerEvent("removeTree");
+            }
+          }
+      }
       if (pull_socket.HasIn || socket_initialized)
       {
         // if (splash_screen.activeSelf) splash_screen.SetActive(false);
