@@ -263,11 +263,16 @@ namespace MessageSpec
 
   public class PointCloudMessage_t
   {
-    public List<float> range { get; set; }
-    public List<float> origin { get; set; }
-    public float resolution { get; set; }
-    public string path { get; set; }
-    public string file_name { get; set; }
+    public int scene_id {get;set;}
+    public List<float> bounding_box_scale { get; set; }
+    public List<float> bounding_box_origin { get; set; }
+    public float resolution_z { get; set; }
+    public float ground_z_limit{ get; set;}
+    public float resolution_above_ground{ get; set;}
+    public float resolution_below_ground{ get; set;}
+    public string path { get; set;}
+    public string file_name { get; set;}
+    public float unity_ground_offset{get;set;}
   }
 
     public class TreeMessage_t

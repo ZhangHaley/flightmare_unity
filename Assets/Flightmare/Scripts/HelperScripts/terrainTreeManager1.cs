@@ -330,15 +330,15 @@ namespace RPGFlightmare
                     Debug.LogWarning("Process was taking too much time to run");
                     return;
                 }
+                //x为roll 方向 z为 pitch方向，并且方向朝向为正z方向
+                float relativeX = treeMessage.bounding_origin[0] - terrainPosition.x;
+                float relativeZ = treeMessage.bounding_origin[1] - terrainPosition.z;
 
-                float relativeX = treeMessage.bounding_origin[1] - terrainPosition.x;
-                float relativeZ = treeMessage.bounding_origin[0]-terrainPosition.z;
+                float startBoundingX = (relativeX - treeMessage.bounding_area[0]/2)/terrainScaleX;
+                float endBoundingX = (relativeX + treeMessage.bounding_area[0]/2) / terrainScaleX;
 
-                float startBoundingX = (relativeX - treeMessage.bounding_area[1]/2)/terrainScaleX;
-                float endBoundingX = (relativeX + treeMessage.bounding_area[1] / 2) / terrainScaleX;
-
-                float startBoundingZ = (relativeZ) / terrainScaleZ; //520/1000
-                float endBoundingZ = (relativeZ + treeMessage.bounding_area[1]) / terrainScaleZ; //755/1000
+                float startBoundingZ = (relativeZ - treeMessage.bounding_area[1]/2) / terrainScaleZ; 
+                float endBoundingZ = (relativeZ + treeMessage.bounding_area[1]/2) / terrainScaleZ;
 
                 var position = new Vector3(Random.value*(endBoundingX- startBoundingX)+ startBoundingX,
                                                                 0.0f, 

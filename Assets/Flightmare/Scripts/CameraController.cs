@@ -146,10 +146,12 @@ namespace RPGFlightmare
         if (client_ip_from_cli.Length > 0)
         {
           ConnectToClient(client_ip_from_cli);
+          //ConnectToTreeClient(client_ip_from_cli);
         }
         else
         {
           ConnectToClient(client_ip);
+          //ConnectToTreeClient(client_ip);
         }
         // Check if the program should use CLI arguments for IP.
         // obstacle_perturbation_file = GetArg("-obstacle-perturbation-file", "");
@@ -161,6 +163,7 @@ namespace RPGFlightmare
       {
         // Try to connect to the default ip
         ConnectToClient(client_ip);
+        //ConnectToTreeClient(client_ip);
       }
       // Initialize Internal State
       internal_state = new UnityState_t();
@@ -207,14 +210,14 @@ namespace RPGFlightmare
       // Close ZMQ sockets
       pull_socket.Close();
       push_socket.Close();
-      //tree_subscrib.Close();
-      //confirm_publish.Close();
+      tree_subscrib.Close();
+      confirm_publish.Close();
       Debug.Log("Terminated ZMQ sockets.");
       NetMQConfig.Cleanup();
       terrainTreeManager1.StopListening("placeTree",terrainTreeManager1.placeFunction);
       terrainTreeManager1.StopListening("removeTree", terrainTreeManager1.removeFunction);
       terrainTreeManager1.StopListening("placeTreeParam", terrainTreeManager1.placeFunctionParam);
-      }
+    }
 
     void InstantiateSockets()
     {
@@ -229,6 +232,18 @@ namespace RPGFlightmare
       push_socket = new NetMQ.Sockets.PublisherSocket();
       push_socket.Options.Linger = TimeSpan.Zero; // Do not keep unsent messages on hangup.
       push_socket.Options.SendHighWatermark = 6; // Do not queue many images.
+
+      //------------- Tree/Object/PointCloud Socket ---------------------//
+      //-----------------------------------------------------------------//
+      tree_subscrib = new NetMQ.Sockets.SubscriberSocket();
+      tree_subscrib.Options.ReceiveHighWatermark = 6;
+            //Setup subscrib
+      tree_subscrib.Subscribe("PLACETREE");
+      tree_subscrib.Subscribe("RMTREE");
+
+      confirm_publish = new NetMQ.Sockets.PublisherSocket();
+      confirm_publish.Options.ReceiveHighWatermark = 6;
+      confirm_publish.Options.Linger = TimeSpan.Zero;
     }
     void InstantiateTreeSockets()
     {
@@ -247,15 +262,28 @@ namespace RPGFlightmare
     public void ConnectToClient(string inputIPString)
     {
       Debug.Log("Trying to connect to: " + inputIPString);
+
+      //-------------------Vehicle/Camera Connect Adress ------------//
       string pose_host_address = "tcp://" + inputIPString + ":" + pose_client_port.ToString();
       string video_host_address = "tcp://" + inputIPString + ":" + video_client_port.ToString();
+
+      //-------------------Tree/Object/PointCloud Connect Adress ------------//
+      string tree_host_address = "tcp://" + inputIPString + ":" + tree_client_port.ToString();
+      string confirm_host_address = "tcp://" + inputIPString + ":" + confirm_client_port.ToString();
+
       // Close ZMQ sockets
+      //-------------------Vehicle/Camera Socket Closed ------------//
       pull_socket.Close();
       push_socket.Close();
+
+      //-------------------Tree/Object/PointCloud Scket Closed ------------//
+      tree_subscrib.Close();
+      confirm_publish.Close();
+
       Debug.Log("Terminated ZMQ sockets.");
       NetMQConfig.Cleanup();
 
-            // Reinstantiate sockets
+      // Reinstantiate sockets
       AsyncIO.ForceDotNet.Force();
       InstantiateSockets();
 
@@ -265,6 +293,8 @@ namespace RPGFlightmare
         Debug.Log(pose_host_address);
         pull_socket.Connect(pose_host_address);
         push_socket.Connect(video_host_address);
+        tree_subscrib.Connect(tree_host_address);
+        confirm_publish.Connect(confirm_host_address);
         Debug.Log("Sockets bound");
         // Save ip address for use on next boot.
         PlayerPrefs.SetString(client_ip_pref_key, inputIPString);
@@ -280,7 +310,6 @@ namespace RPGFlightmare
 
     public void ConnectToTreeClient(string inputIPString)
     {
-      Debug.Log("Trying to connect to: " + inputIPString);
       string tree_host_address = "tcp://" + inputIPString + ":" + tree_client_port.ToString();
       string confirm_host_address = "tcp://" + inputIPString + ":" + confirm_client_port.ToString();
       // Close ZMQ sockets
@@ -290,7 +319,7 @@ namespace RPGFlightmare
       NetMQConfig.Cleanup();
 
             // Reinstantiate sockets
-      //AsyncIO.ForceDotNet.Force();
+      AsyncIO.ForceDotNet.Force();
       InstantiateTreeSockets();
 
       // Try to connect sockets
@@ -340,39 +369,39 @@ namespace RPGFlightmare
       
 
       
-      //  {
-      //       var tree_msg = new NetMQMessage();
-      //       var new_tree_msg = new NetMQMessage();
-      //       bool received_tree_packet = tree_subscrib.TryReceiveMultipartMessage(new TimeSpan(0, 0, connection_timeout_seconds), ref new_tree_msg);
-      //       //有数据正在接收
-      //       //while (tree_subscrib.TryReceiveMultipartMessage(ref new_tree_msg));
-      //       //等待数据接受完成,保证下一次更新不会进入判断
-      //       if (received_tree_packet)
-      //        {
-      //               if ("PLACETREE" == new_tree_msg[0].ConvertToString())
-      //               {
-      //                   if (new_tree_msg.FrameCount >= tree_msg.FrameCount) { tree_msg = new_tree_msg; }
-      //                   if (tree_msg.FrameCount != 2) {
-      //                       tree_message = new TreeMessage_t();
-      //                       tree_message.seed = 0.1f;
-      //                       tree_message.bounding_origin = new List<float> { -10, 0 };
-      //                       tree_message.bounding_area = new List<float> { 253, 253 };
-      //                       tree_message.desity = (float)Math.Pow(253 / 7, 2);
-      //                       EventParam events = new EventParam { treeMessage = tree_message };
-      //                       terrainTreeManager1.TriggerEvent("placeTreeParam", events);
-      //                   }
-      //                   else{
-      //                       tree_message = JsonConvert.DeserializeObject<TreeMessage_t>(tree_msg[1].ConvertToString());
-      //                       EventParam events = new EventParam { treeMessage = tree_message };
-      //                       terrainTreeManager1.TriggerEvent("placeTreeParam", events);
-      //                       sendTreeReady();
-      //                   }
-      //               }
-      //               else if ("RMTREE" == new_tree_msg[0].ConvertToString())
-      //               {
-      //                   terrainTreeManager1.TriggerEvent("removeTree");
-      //               }
-      //        }
+      // {
+      //   var tree_msg = new NetMQMessage();
+      //   var new_tree_msg = new NetMQMessage();
+      //   bool received_tree_packet = tree_subscrib.TryReceiveMultipartMessage(new TimeSpan(0, 0, connection_timeout_seconds), ref new_tree_msg);
+      //   //有数据正在接收
+      //   //while (tree_subscrib.TryReceiveMultipartMessage(ref new_tree_msg));
+      //   //等待数据接受完成,保证下一次更新不会进入判断
+      //   if (received_tree_packet)
+      //     {
+      //       if ("PLACETREE" == new_tree_msg[0].ConvertToString())
+      //       {
+      //         if (new_tree_msg.FrameCount >= tree_msg.FrameCount) { tree_msg = new_tree_msg; }
+      //         if (tree_msg.FrameCount != 2) {
+      //             tree_message = new TreeMessage_t();
+      //             tree_message.seed = 0.1f;
+      //             tree_message.bounding_origin = new List<float> { 0, 0 };
+      //             tree_message.bounding_area = new List<float> { 253, 253 };
+      //             tree_message.desity = (float)Math.Pow(253 / 7, 2);
+      //             EventParam events = new EventParam { treeMessage = tree_message };
+      //             terrainTreeManager1.TriggerEvent("placeTreeParam", events);
+      //         }
+      //         else{
+      //             tree_message = JsonConvert.DeserializeObject<TreeMessage_t>(tree_msg[1].ConvertToString());
+      //             EventParam events = new EventParam { treeMessage = tree_message };
+      //             terrainTreeManager1.TriggerEvent("placeTreeParam", events);
+      //             sendTreeReady();
+      //         }
+      //       }
+      //       else if ("RMTREE" == new_tree_msg[0].ConvertToString())
+      //       {
+      //           terrainTreeManager1.TriggerEvent("removeTree");
+      //       }
+      //     }
       // }
       if (pull_socket.HasIn || socket_initialized)
       {
@@ -455,9 +484,9 @@ namespace RPGFlightmare
           SavePointCloud save_pointcloud = GetComponent<SavePointCloud>();
 
           // settings point cloud
-          save_pointcloud.origin = ListToVector3(pointcloud_msg.origin);
-          save_pointcloud.range = ListToVector3(pointcloud_msg.range);
-          save_pointcloud.resolution = pointcloud_msg.resolution;
+          save_pointcloud.origin = ListToVector3(pointcloud_msg.bounding_box_origin);
+          save_pointcloud.range = ListToVector3(pointcloud_msg.bounding_box_scale);
+          save_pointcloud.resolution = pointcloud_msg.resolution_above_ground;
           save_pointcloud.path = pointcloud_msg.path;
           save_pointcloud.fileName = pointcloud_msg.file_name;
 
