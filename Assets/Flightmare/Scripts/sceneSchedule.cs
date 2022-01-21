@@ -12,7 +12,7 @@ namespace RPGFlightmare
     public const string SCENE_WAREHOUSE = "Environments/Warehouse/Scenes/DemoScene";
     public const string SCENE_GARAGE = "Environments/Garage/Scenes/DemoScene";
     public const string SCENE_TUNNELS = "Environments/Tunnels/Scenes/DemoSceneSimple";
-    public const string SCENE_NATUREFOREST = "Environments/Forest/Scenes/DemoScene";
+    public const string SCENE_NATUREFOREST = "Environments/Forest/Scenes/Forest";
     public const string SCENE_INDUSTRIAL = "Environments/Industrial/Scenes/DemoScene";
     //
     public List<string> scenes_list = new List<string>();
@@ -26,7 +26,7 @@ namespace RPGFlightmare
       scenes_list.Add(SCENE_NATUREFOREST);
       scenes_list.Add(SCENE_TUNNELS);
 
-      default_scene_id = 0;
+      default_scene_id = 3;
       num_scene = scenes_list.Count;
     }
 
@@ -39,7 +39,8 @@ namespace RPGFlightmare
     public void Start()
     {
       loadScene(scenes.default_scene_id, true);
-    }
+      Debug.Log("Load init sense sense_id is :3");
+     }
     public void loadScene(int scene_id, bool camera_preview)
     {
       if (scene_id >= 0 && scene_id < scenes.num_scene)

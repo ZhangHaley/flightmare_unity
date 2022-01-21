@@ -15,6 +15,7 @@ namespace RPGFlightmare
     }
 
     // Update is called once per frame
+    //转换点运坐标
     void Update()
     {
       this.transform.position = CoordinateChange(save_pointcloud.origin);
@@ -27,3 +28,4 @@ namespace RPGFlightmare
     }
   }
 } // namespace RPGFlightmares
+

@@ -123,6 +123,11 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &46184192 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7994130979636171633, guid: e9142156aa47bd036bc5c4b3fd28499c, type: 3}
+  m_PrefabInstance: {fileID: 102257246}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &102257246
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -295,18 +300,26 @@ PrefabInstance:
       propertyPath: m_Name
       value: Camera_Controller
       objectReference: {fileID: 0}
+    - target: {fileID: 8638909755990179799, guid: 3d374c37885fb074d93f8b9bb965164c, type: 3}
+      propertyPath: m_TagString
+      value: Untagged
+      objectReference: {fileID: 0}
     - target: {fileID: 8638909755990179802, guid: 3d374c37885fb074d93f8b9bb965164c, type: 3}
       propertyPath: splash_screen
       value: 
-      objectReference: {fileID: 2120978137}
+      objectReference: {fileID: 1015087341}
     - target: {fileID: 8638909755990179802, guid: 3d374c37885fb074d93f8b9bb965164c, type: 3}
       propertyPath: PointCloudSaved
       value: 
-      objectReference: {fileID: 1844115422}
+      objectReference: {fileID: 1249500536}
     - target: {fileID: 8638909755990179802, guid: 3d374c37885fb074d93f8b9bb965164c, type: 3}
       propertyPath: input_ip
       value: 
-      objectReference: {fileID: 708839863}
+      objectReference: {fileID: 931274800}
+    - target: {fileID: 8638909755990179802, guid: 3d374c37885fb074d93f8b9bb965164c, type: 3}
+      propertyPath: Terrain
+      value: 
+      objectReference: {fileID: 46184192}
     - target: {fileID: 8638909755990179803, guid: 3d374c37885fb074d93f8b9bb965164c, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
@@ -397,7 +410,7 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &708839863 stripped
+--- !u!114 &931274800 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 7994130978841776866, guid: e9142156aa47bd036bc5c4b3fd28499c, type: 3}
   m_PrefabInstance: {fileID: 102257246}
@@ -408,11 +421,28 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d199490a83bb2b844b9695cbf13b01ef, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &1015087341 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7994130978592098451, guid: e9142156aa47bd036bc5c4b3fd28499c, type: 3}
+  m_PrefabInstance: {fileID: 102257246}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1181571162 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8638909755990179799, guid: 3d374c37885fb074d93f8b9bb965164c, type: 3}
   m_PrefabInstance: {fileID: 331697726}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1181571163
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1181571162}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6a96efb2b4b7db94c8bdd11ee6b3db5f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &1181571164 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8638909755990179802, guid: 3d374c37885fb074d93f8b9bb965164c, type: 3}
@@ -435,6 +465,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 77d5c60994030d04e813b55bcda675e5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!1 &1249500536 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1844115422, guid: e9142156aa47bd036bc5c4b3fd28499c, type: 3}
+  m_PrefabInstance: {fileID: 102257246}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1332777631
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -600,11 +635,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1844115422 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 1844115422, guid: e9142156aa47bd036bc5c4b3fd28499c, type: 3}
-  m_PrefabInstance: {fileID: 102257246}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1967126178 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6811674135233330990, guid: b7770d93dbbc6ce63b892ae626fe64c6, type: 3}
@@ -628,8 +658,3 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   CameraController: {fileID: 1181571162}
---- !u!1 &2120978137 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 7994130978592098451, guid: e9142156aa47bd036bc5c4b3fd28499c, type: 3}
-  m_PrefabInstance: {fileID: 102257246}
-  m_PrefabAsset: {fileID: 0}

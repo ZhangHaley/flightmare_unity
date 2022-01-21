@@ -73,7 +73,7 @@ namespace RPGFlightmare
       cam.backgroundColor = clearColor;
       cam.clearFlags = CameraClearFlags.SolidColor;
     }
-    public Camera CreateHiddenCamera(string cam_name, string image_mode, float camFOV, float nearClipPlane, float farClipPlane, Camera mainCam)
+    public Camera CreateHiddenCamera(string cam_name, string image_mode, float camFOV, Camera mainCam)
     {
       var go = new GameObject(cam_name, typeof(Camera));
       go.hideFlags = HideFlags.HideAndDontSave;
@@ -84,8 +84,8 @@ namespace RPGFlightmare
 
       var newCamera = go.GetComponent<Camera>();
       newCamera.fieldOfView = camFOV;
-      newCamera.nearClipPlane = nearClipPlane;
-      newCamera.farClipPlane = farClipPlane;
+      newCamera.nearClipPlane = 0.01f;
+      newCamera.farClipPlane = 1000f;
       
       updateCameraFilter(newCamera, image_mode);
       newCamera.targetDisplay = 1;

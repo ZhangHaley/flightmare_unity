@@ -112,14 +112,15 @@ namespace MessageSpec
     public int width { get; set; }
     public int height { get; set; }
     public float fov { get; set; }
-    public List<float> nearClipPlane { get; set; }
-    public List<float> farClipPlane { get; set; }
+    // public List<float> nearClipPlane { get; set; }
+    // public List<float> farClipPlane { get; set; }
     public float depthScale { get; set; }
     // transformation matrix
     public List<float> T_BC { get; set; }
     public bool isDepth { get; set; }
     public int outputIndex { get; set; }
-    public List<bool> enabledLayers { get; set; }
+    public List<string> post_processing { get; set; }
+    // public List<bool> enabledLayers { get; set; }
     // Additional getters
     public bool isGrayscale { get { return (channels == 1) && (!isDepth); } }
   }
@@ -217,7 +218,7 @@ namespace MessageSpec
   }
   public class SubMessage_t
   {
-    public Int64 frame_id { get; set; }
+    public Int64 ntime { get; set; }
     // Object state update
     public List<Vehicle_t> vehicles { get; set; }
     public List<Object_t> objects { get; set; }
@@ -237,7 +238,7 @@ namespace MessageSpec
   // =============================
   public class PubMessage_t
   {
-    public Int64 frame_id { get; set; }
+    public Int64 ntime { get; set; }
     public List<Pub_Vehicle_t> pub_vehicles;
     public PubMessage_t(SettingsMessage_t settings)
     {
@@ -269,4 +270,27 @@ namespace MessageSpec
     public string file_name { get; set; }
   }
 
+    public class TreeMessage_t
+    {
+        public List<float> bounding_area { get; set; }
+        public List<float> bounding_origin { get; set; }
+
+        public float desity { get; set; }
+
+        public float seed { get; set; }
+    }
+
+    public class TreeReadyMessage_t
+    {
+        public bool ready { get; set; }
+        public TreeReadyMessage_t(bool r)
+        {
+            ready = r;
+        }
+    }
+
+    public struct EventParam { public TreeMessage_t treeMessage; }
+
 }
+
+

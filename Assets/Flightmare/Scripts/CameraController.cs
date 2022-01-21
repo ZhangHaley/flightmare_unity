@@ -45,6 +45,10 @@ namespace RPGFlightmare
     [HideInInspector]
     public const int video_client_default_port = 10254;
     [HideInInspector]
+    public const int tree_client_default_port = 10255;
+    [HideInInspector]
+    public const int confirm_client_default_port = 10256;
+    [HideInInspector]
     public const string client_ip_default = "127.0.0.1";
     [HideInInspector]
     public const string client_ip_pref_key = "client_ip";
@@ -61,6 +65,8 @@ namespace RPGFlightmare
     public string client_ip = client_ip_default;
     public int pose_client_port = pose_client_default_port;
     public int video_client_port = video_client_default_port;
+    public int tree_client_port = tree_client_default_port;
+    public int confirm_client_port = confirm_client_default_port;
     public const int connection_timeout_seconds = connection_timeout_seconds_default;
 
     // public bool DEBUG = false;
@@ -75,9 +81,9 @@ namespace RPGFlightmare
     // default scenes and assets
     private string topLevelSceneName = "Top_Level_Scene";
 
-    // NETWORK
-    private NetMQ.Sockets.SubscriberSocket pull_socket;
-    private NetMQ.Sockets.PublisherSocket push_socket;
+        // NETWORK
+    private NetMQ.Sockets.SubscriberSocket pull_socket, tree_subscrib;
+    private NetMQ.Sockets.PublisherSocket push_socket, confirm_publish;
     private bool socket_initialized = false;
     // setting message is also a kind of sub message,
     // but we only subscribe it for initialization.
@@ -85,6 +91,10 @@ namespace RPGFlightmare
     private SubMessage_t sub_message;  // subscribed for update
     private PubMessage_t pub_message; // publish messages, e.g., images, collision, etc.
                                       // Internal state & storage variables
+    private TreeMessage_t tree_message;
+    private bool placeFlag = false;
+
+
     private UnityState_t internal_state;
     private Texture2D rendered_frame;
     private object socket_lock;
@@ -93,6 +103,7 @@ namespace RPGFlightmare
     // optical flow, depth image. 
     private RPGImageSynthesis img_post_processing;
     private sceneSchedule scene_schedule;
+    private terrainTreeManager1 terrain_manager;
     private Vector3 thirdPV_cam_offset;
     private int activate_vehicle_cam = 0;
 
@@ -100,8 +111,14 @@ namespace RPGFlightmare
     * UNITY PLAYER EVENT HOOKS 
     * =====================
     */
-    // Function called when Unity Player is loaded.
-    // Only execute once.
+    void OnEnable()
+    {
+        terrainTreeManager1.StartListening("placeTree",terrainTreeManager1.placeFunction);
+        terrainTreeManager1.StartListening("removeTree",terrainTreeManager1.removeFunction);
+        terrainTreeManager1.StartListening("placeTreeParam", terrainTreeManager1.placeFunctionParam);
+    }
+        // Function called when Unity Player is loaded.
+        // Only execute once.
     public void Start()
     {
       // Application.targetFrameRate = 9999;
@@ -114,6 +131,7 @@ namespace RPGFlightmare
       socket_lock = new object();
       // Instantiate sockets
       InstantiateSockets();
+      //InstantiateTreeSockets();
       // Check if previously saved ip exists
       client_ip = PlayerPrefs.GetString(client_ip_pref_key, client_ip_default);
       //
@@ -144,13 +162,6 @@ namespace RPGFlightmare
         // Try to connect to the default ip
         ConnectToClient(client_ip);
       }
-
-      // Init simple splash screen
-      // Text text_obj = splash_screen.GetComponentInChildren<Text>(true);
-      // input_ip.text = client_ip;
-      // text_obj.text = "Welcome to RPG Flightmare!";
-      // splash_screen.SetActive(true);
-
       // Initialize Internal State
       internal_state = new UnityState_t();
       // Do not try to do any processing this frame so that we can render our splash screen.
@@ -159,8 +170,13 @@ namespace RPGFlightmare
       img_post_processing = GetComponent<RPGImageSynthesis>();
 
       scene_schedule = GetComponent<sceneSchedule>();
-      //
+
+      terrain_manager = GetComponent<terrainTreeManager1>();      
+      
+      terrainTreeManager1.TriggerEvent("removeTree");
+
       StartCoroutine(WaitForRender());
+      Debug.Log("End Start");
     }
 
     // Co-routine in Unity, executed every frame. 
@@ -176,7 +192,7 @@ namespace RPGFlightmare
         // Check if this frame should be rendered.
         if (internal_state.readyToRender && sub_message != null)
         {
-          // Debug.Log("Ready to Render.");
+          Debug.Log("Ready to Render.");
           // Read the frame from the GPU backbuffer and send it via ZMQ.
           sendFrameOnWire();
         }
@@ -191,22 +207,41 @@ namespace RPGFlightmare
       // Close ZMQ sockets
       pull_socket.Close();
       push_socket.Close();
+      //tree_subscrib.Close();
+      //confirm_publish.Close();
       Debug.Log("Terminated ZMQ sockets.");
       NetMQConfig.Cleanup();
-    }
+      terrainTreeManager1.StopListening("placeTree",terrainTreeManager1.placeFunction);
+      terrainTreeManager1.StopListening("removeTree", terrainTreeManager1.removeFunction);
+      terrainTreeManager1.StopListening("placeTreeParam", terrainTreeManager1.placeFunctionParam);
+      }
 
     void InstantiateSockets()
     {
       // Configure sockets
-      Debug.Log("Configuring sockets.");
+      //Debug.Log("Configuring sockets.");
       pull_socket = new NetMQ.Sockets.SubscriberSocket();
       pull_socket.Options.ReceiveHighWatermark = 6;
       // Setup subscriptions.
       pull_socket.Subscribe("Pose");
-      pull_socket.Subscribe("PointCloud");
+      //pull_socket.Subscribe("PointCloud");
+
       push_socket = new NetMQ.Sockets.PublisherSocket();
       push_socket.Options.Linger = TimeSpan.Zero; // Do not keep unsent messages on hangup.
       push_socket.Options.SendHighWatermark = 6; // Do not queue many images.
+    }
+    void InstantiateTreeSockets()
+    {
+
+      tree_subscrib = new NetMQ.Sockets.SubscriberSocket();
+      tree_subscrib.Options.ReceiveHighWatermark = 6;
+            //Setup subscrib
+      tree_subscrib.Subscribe("PLACETREE");
+      tree_subscrib.Subscribe("RMTREE");
+
+      confirm_publish = new NetMQ.Sockets.PublisherSocket();
+      confirm_publish.Options.ReceiveHighWatermark = 6;
+      confirm_publish.Options.Linger = TimeSpan.Zero;
     }
 
     public void ConnectToClient(string inputIPString)
@@ -220,7 +255,8 @@ namespace RPGFlightmare
       Debug.Log("Terminated ZMQ sockets.");
       NetMQConfig.Cleanup();
 
-      // Reinstantiate sockets
+            // Reinstantiate sockets
+      AsyncIO.ForceDotNet.Force();
       InstantiateSockets();
 
       // Try to connect sockets
@@ -229,6 +265,39 @@ namespace RPGFlightmare
         Debug.Log(pose_host_address);
         pull_socket.Connect(pose_host_address);
         push_socket.Connect(video_host_address);
+        Debug.Log("Sockets bound");
+        // Save ip address for use on next boot.
+        PlayerPrefs.SetString(client_ip_pref_key, inputIPString);
+        PlayerPrefs.Save();
+      }
+      catch (Exception)
+      {
+        Debug.LogError("Input address from textbox is invalid. Note that hostnames are not supported!");
+        throw;
+      }
+
+    }
+
+    public void ConnectToTreeClient(string inputIPString)
+    {
+      Debug.Log("Trying to connect to: " + inputIPString);
+      string tree_host_address = "tcp://" + inputIPString + ":" + tree_client_port.ToString();
+      string confirm_host_address = "tcp://" + inputIPString + ":" + confirm_client_port.ToString();
+      // Close ZMQ sockets
+      tree_subscrib.Close();
+      confirm_publish.Close();
+      Debug.Log("Terminated ZMQ sockets.");
+      NetMQConfig.Cleanup();
+
+            // Reinstantiate sockets
+      //AsyncIO.ForceDotNet.Force();
+      InstantiateTreeSockets();
+
+      // Try to connect sockets
+      try
+      {
+        tree_subscrib.Connect(tree_host_address);
+        confirm_publish.Connect(confirm_host_address);
         Debug.Log("Sockets bound.");
         // Save ip address for use on next boot.
         PlayerPrefs.SetString(client_ip_pref_key, inputIPString);
@@ -249,7 +318,62 @@ namespace RPGFlightmare
     */
     void Update()
     {
-      // Debug.Log("Update: " + Time.deltaTime);
+
+      
+      // if(!placeFlag)
+      // {
+      //   //terrainTreeManager1.TriggerEvent("placeTree");
+      //   EventParam events = new EventParam();
+      //   TreeMessage_t message_T = new TreeMessage_t();
+      //   message_T.seed = 0.1f;
+      //   message_T.bounding_origin = new List<float> { -10, 0 };
+      //   message_T.bounding_area = new List<float> { 253, 253 };
+      //   message_T.desity = (float)Math.Pow(253/7,2);
+      //   events.treeMessage = message_T;
+      //   terrainTreeManager1.TriggerEvent("placeTreeParam",events);
+      //   terrainTreeManager1.TriggerEvent("removeTree");
+      //   //terrainTreeManager1.TriggerEvent("removeTree");
+      //   placeFlag =true;
+      //   Debug.Log("<color=bule>Placeds trees</color>");
+      // }
+      
+      
+
+      
+      //  {
+      //       var tree_msg = new NetMQMessage();
+      //       var new_tree_msg = new NetMQMessage();
+      //       bool received_tree_packet = tree_subscrib.TryReceiveMultipartMessage(new TimeSpan(0, 0, connection_timeout_seconds), ref new_tree_msg);
+      //       //有数据正在接收
+      //       //while (tree_subscrib.TryReceiveMultipartMessage(ref new_tree_msg));
+      //       //等待数据接受完成,保证下一次更新不会进入判断
+      //       if (received_tree_packet)
+      //        {
+      //               if ("PLACETREE" == new_tree_msg[0].ConvertToString())
+      //               {
+      //                   if (new_tree_msg.FrameCount >= tree_msg.FrameCount) { tree_msg = new_tree_msg; }
+      //                   if (tree_msg.FrameCount != 2) {
+      //                       tree_message = new TreeMessage_t();
+      //                       tree_message.seed = 0.1f;
+      //                       tree_message.bounding_origin = new List<float> { -10, 0 };
+      //                       tree_message.bounding_area = new List<float> { 253, 253 };
+      //                       tree_message.desity = (float)Math.Pow(253 / 7, 2);
+      //                       EventParam events = new EventParam { treeMessage = tree_message };
+      //                       terrainTreeManager1.TriggerEvent("placeTreeParam", events);
+      //                   }
+      //                   else{
+      //                       tree_message = JsonConvert.DeserializeObject<TreeMessage_t>(tree_msg[1].ConvertToString());
+      //                       EventParam events = new EventParam { treeMessage = tree_message };
+      //                       terrainTreeManager1.TriggerEvent("placeTreeParam", events);
+      //                       sendTreeReady();
+      //                   }
+      //               }
+      //               else if ("RMTREE" == new_tree_msg[0].ConvertToString())
+      //               {
+      //                   terrainTreeManager1.TriggerEvent("removeTree");
+      //               }
+      //        }
+      // }
       if (pull_socket.HasIn || socket_initialized)
       {
         // if (splash_screen.activeSelf) splash_screen.SetActive(false);
@@ -261,16 +385,20 @@ namespace RPGFlightmare
 
         // Wait for a message from the client.
         bool received_new_packet = pull_socket.TryReceiveMultipartMessage(new TimeSpan(0, 0, connection_timeout_seconds), ref new_msg);
-
-        if (!received_new_packet && socket_initialized)
+        //如果初始化完成 没有收到来自ROS 的数据包
+        //就导入 Top_Three_Level
+        if (!received_new_packet && socket_initialized )
         {
           // Close ZMQ sockets
           pull_socket.Close();
           push_socket.Close();
+          // tree_subscrib.Close();
+          // confirm_publish.Close();
           // Debug.Log("Terminated ZMQ sockets.");
           NetMQConfig.Cleanup();
           Thread.Sleep(100); // [ms]
                              // Restart FlightGoggles and wait for a new connection.
+          //loadScene();
           SceneManager.LoadScene(topLevelSceneName);
           // Initialize Internal State
           internal_state = new UnityState_t();
@@ -281,7 +409,8 @@ namespace RPGFlightmare
         }
 
         // Check if this is the latest message
-        while (pull_socket.TryReceiveMultipartMessage(ref new_msg)) ;
+        while (pull_socket.TryReceiveMultipartMessage(ref new_msg));
+        Debug.Log("<color=yellow>"+new_msg[0].ConvertToString()+new_msg[1].ConvertToString()+"</color>");
 
         if ("Pose" == new_msg[0].ConvertToString())
         {
@@ -295,13 +424,14 @@ namespace RPGFlightmare
             settings = JsonConvert.DeserializeObject<SettingsMessage_t>(msg[1].ConvertToString());
             settings.InitParamsters();
             // Make sure that all objects are initialized properly
-            initializeObjects(); // readyToRender set True if all objects are initialized.
+            initializeObjects(); // readyToRender set True if all steps are initialized.
             if (internal_state.readyToRender)
             {
               sendReady();
             }
             return; // no need to worry about the rest if not ready. 
           }
+          // If it is readytToRender
           else
           {
             pub_message = new PubMessage_t(settings);
@@ -350,6 +480,8 @@ namespace RPGFlightmare
     void initializeObjects()
     {
       // Initialize Screen & keep track of frames to skip
+      // 每次将 screenSkipFrames=1
+      //直到执行到最后一步将 readyToRender ==0;
       internal_state.screenSkipFrames = Math.Max(0, internal_state.screenSkipFrames - 1);
 
       // NOP if Unity wants us to skip this frame.
@@ -444,7 +576,7 @@ namespace RPGFlightmare
       }
     }
 
-    void instantiateCameras()
+   private void instantiateCameras()
     {
       // Disable cameras in scene
       foreach (Camera c in FindObjectsOfType<Camera>())
@@ -462,8 +594,8 @@ namespace RPGFlightmare
           // 
           var currentCam = obj.GetComponent<Camera>();
           currentCam.fieldOfView = camera.fov;
-          currentCam.nearClipPlane = camera.nearClipPlane[0];
-          currentCam.farClipPlane = camera.farClipPlane[0];
+          // currentCam.nearClipPlane = camera.nearClipPlane[0];
+          // currentCam.farClipPlane = camera.farClipPlane[0];
           // apply translation and rotation;
           var translation = ListToVector3(vehicle_i.position);
           var quaternion = ListToQuaternion(vehicle_i.rotation);
@@ -699,7 +831,7 @@ namespace RPGFlightmare
       //UNload unused assets
       Resources.UnloadUnusedAssets();
     }
-
+    //实例化 Objects
     void instantiateObjects()
     {
       // Initialize additional objects
@@ -747,21 +879,33 @@ namespace RPGFlightmare
             {
               currentCam.targetDisplay = 1;
             }
-            int layer_id = 0;
-            foreach (var layer_on in camera.enabledLayers)
+            // int layer_id = 0;
+            // foreach (var layer_on in camera.enabledLayers)
+            // {
+            //   if (layer_on)
+            //   {
+            //     string filter_ID = camera.ID + "_" + layer_id.ToString();
+            //     var cam_filter = img_post_processing.CreateHiddenCamera(filter_ID,
+            //         img_post_processing.image_modes[layer_id], camera.fov, camera.nearClipPlane[layer_id + 1], camera.farClipPlane[layer_id + 1], currentCam);
+            //     if (!internal_state.camera_filters.ContainsKey(filter_ID))
+            //     {
+            //       internal_state.camera_filters[filter_ID] = cam_filter;
+            //     }
+            //   }
+            //   layer_id += 1;
+            // }
+            if(camera.post_processing.Count != 0){
+            foreach (string layer_id in camera.post_processing)
             {
-              if (layer_on)
-              {
-                string filter_ID = camera.ID + "_" + layer_id.ToString();
+                string filter_ID = camera.ID + "_" + layer_id;
                 var cam_filter = img_post_processing.CreateHiddenCamera(filter_ID,
-                    img_post_processing.image_modes[layer_id], camera.fov, camera.nearClipPlane[layer_id + 1], camera.farClipPlane[layer_id + 1], currentCam);
+                    layer_id, camera.fov,currentCam);
                 if (!internal_state.camera_filters.ContainsKey(filter_ID))
                 {
                   internal_state.camera_filters[filter_ID] = cam_filter;
                 }
-              }
-              layer_id += 1;
-            }
+              
+            }}
           }
         }
       }
@@ -792,12 +936,20 @@ namespace RPGFlightmare
         push_socket.TrySendMultipartMessage(msg);
       }
     }
+    void sendTreeReady()
+    {
+      TreeReadyMessage_t metadata = new TreeReadyMessage_t(true);
+      var msg = new NetMQMessage();
+      msg.Append("PLACETREE");
+      msg.Append(JsonConvert.SerializeObject(metadata));
+      confirm_publish.TrySendMultipartMessage(msg);
+    }
 
     // Reads a scene frame from the GPU backbuffer and sends it via ZMQ.
     void sendFrameOnWire()
     {
       // Get metadata
-      pub_message.frame_id = sub_message.frame_id;
+      pub_message.ntime = sub_message.ntime;
       // Create packet metadata
       var msg = new NetMQMessage();
       msg.Append(JsonConvert.SerializeObject(pub_message));
@@ -817,17 +969,26 @@ namespace RPGFlightmare
           var raw = readImageFromHiddenCamera(current_cam, cam_config);
           msg.Append(raw);
 
-          int layer_id = 0;
-          foreach (var layer_on in cam_config.enabledLayers)
+          // int layer_id = 0;
+          // foreach (var layer_on in cam_config.enabledLayers)
+          // {
+          //   if (layer_on)
+          //   {
+          //     string filter_ID = cam_config.ID + "_" + layer_id.ToString();
+          //     var rawimage = img_post_processing.getRawImage(internal_state.camera_filters[filter_ID],
+          //         settings.camWidth, settings.camHeight, img_post_processing.image_modes[layer_id]);
+          //     msg.Append(rawimage);
+          //   }
+          //   layer_id += 1;
+          // }
+          if(cam_config.post_processing.Count != 0){
+          foreach (var layer_id in cam_config.post_processing)
           {
-            if (layer_on)
-            {
-              string filter_ID = cam_config.ID + "_" + layer_id.ToString();
+              string filter_ID = cam_config.ID + "_" + layer_id;
               var rawimage = img_post_processing.getRawImage(internal_state.camera_filters[filter_ID],
-                  settings.camWidth, settings.camHeight, img_post_processing.image_modes[layer_id]);
+                  settings.camWidth, settings.camHeight, layer_id);
               msg.Append(rawimage);
-            }
-            layer_id += 1;
+          }
           }
         }
 
