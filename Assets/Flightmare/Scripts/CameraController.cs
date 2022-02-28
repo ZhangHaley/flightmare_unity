@@ -242,19 +242,7 @@ namespace RPGFlightmare
             //Setup subscrib
       tree_subscrib.Subscribe("PLACETREE");
       tree_subscrib.Subscribe("RMTREE");
-
-      confirm_publish = new NetMQ.Sockets.PublisherSocket();
-      confirm_publish.Options.ReceiveHighWatermark = 6;
-      confirm_publish.Options.Linger = TimeSpan.Zero;
-    }
-    void InstantiateTreeSockets()
-    {
-
-      tree_subscrib = new NetMQ.Sockets.SubscriberSocket();
-      tree_subscrib.Options.ReceiveHighWatermark = 6;
-            //Setup subscrib
-      tree_subscrib.Subscribe("PLACETREE");
-      tree_subscrib.Subscribe("RMTREE");
+      tree_subscrib.Subscribe("PCD");
 
       confirm_publish = new NetMQ.Sockets.PublisherSocket();
       confirm_publish.Options.ReceiveHighWatermark = 6;
@@ -310,38 +298,6 @@ namespace RPGFlightmare
 
     }
 
-    public void ConnectToTreeClient(string inputIPString)
-    {
-      string tree_host_address = "tcp://" + inputIPString + ":" + tree_client_port.ToString();
-      string confirm_host_address = "tcp://" + inputIPString + ":" + confirm_client_port.ToString();
-      // Close ZMQ sockets
-      tree_subscrib.Close();
-      confirm_publish.Close();
-      Debug.Log("Terminated ZMQ sockets.");
-      NetMQConfig.Cleanup();
-
-            // Reinstantiate sockets
-      AsyncIO.ForceDotNet.Force();
-      InstantiateTreeSockets();
-
-      // Try to connect sockets
-      try
-      {
-        tree_subscrib.Connect(tree_host_address);
-        confirm_publish.Connect(confirm_host_address);
-        Debug.Log("Sockets bound.");
-        // Save ip address for use on next boot.
-        PlayerPrefs.SetString(client_ip_pref_key, inputIPString);
-        PlayerPrefs.Save();
-      }
-      catch (Exception)
-      {
-        Debug.LogError("Input address from textbox is invalid. Note that hostnames are not supported!");
-        throw;
-      }
-
-    }
-
     /* 
     * Update is called once per frame
     * Take the most recent ZMQ message and use it to position the cameras.
@@ -350,8 +306,6 @@ namespace RPGFlightmare
     void Update()
     {
       //Debug.Log("<color=pink>update CameraContol"+Time.deltaTime+"</color>");
-
-      
       if(!placeFlag)
       {
         // //terrainTreeManager1.TriggerEvent("placeTree");
@@ -469,41 +423,54 @@ namespace RPGFlightmare
         var tree_msg = new NetMQMessage();
         var new_tree_msg = new NetMQMessage();
         bool received_tree_packet = tree_subscrib.TryReceiveMultipartMessage(new TimeSpan(0, 0, connection_timeout_seconds), ref new_tree_msg);
+        while (tree_subscrib.TryReceiveMultipartMessage(ref new_tree_msg));
+        Debug.Log("<color=yellow>"+new_tree_msg[0].ConvertToString()+new_tree_msg[1].ConvertToString()+"</color>");
+        if ("PLACETREE" == new_tree_msg[0].ConvertToString())
+        {
+          if (new_tree_msg.FrameCount >= tree_msg.FrameCount) { tree_msg = new_tree_msg; }
+          Debug.Log("<color=yellow>"+tree_msg[0].ConvertToString()+tree_msg[1].ConvertToString()+"</color>");
+          if (tree_msg.FrameCount != 2) {
+              tree_message = new TreeMessage_t();
+              tree_message.seed = 69;
+              tree_message.bounding_origin = new List<float> { 0, 0 };
+              tree_message.bounding_area = new List<float> { 253, 253 };
+              tree_message.density = (int)Math.Pow(253 / 7, 2);
+              EventParam events = new EventParam { treeMessage = tree_message };
+              terrainTreeManager1.TriggerEvent("placeTreeParam", events);
+              //Thread.Sleep(1000);
+          }
+          else
+          {
+              tree_message = JsonConvert.DeserializeObject<TreeMessage_t>(tree_msg[1].ConvertToString());
+              Debug.Log("<color=blue>tree_message:  "+tree_message.seed.ToString()+"</color>");
+              EventParam events = new EventParam { treeMessage = tree_message };
+              terrainTreeManager1.TriggerEvent("placeTreeParam", events);
+              //Thread.Sleep(1000);
+              sendTreeReady();
+              Debug.Log("<color=green>SendTreeReady</color>");
+          }
+        }
+        else if ("RMTREE" == new_tree_msg[0].ConvertToString())
+        {
+            terrainTreeManager1.TriggerEvent("removeTree");
+            Debug.Log("<color=green>RMTREE</color>");
+        }
+        else if ("PCD" == new_tree_msg[0].ConvertToString())
+        {
+          Debug.Log("<color=yellow> Generate PointCloud </color>");
+          PointCloudMessage_t pointcloud_msg = JsonConvert.DeserializeObject<PointCloudMessage_t>(new_tree_msg[1].ConvertToString());
+          SavePointCloud save_pointcloud = GetComponent<SavePointCloud>();
+          // settings point cloud
+          save_pointcloud.origin = ListToVector3(pointcloud_msg.bounding_box_origin);
+          save_pointcloud.range = ListToVector3(pointcloud_msg.bounding_box_scale);
+          save_pointcloud.resolution = pointcloud_msg.resolution_above_ground;
+          save_pointcloud.path = pointcloud_msg.path;
+          Debug.Log("<color=green> PointCloud path:"+pointcloud_msg.path+" </color>");
 
-        // if (received_tree_packet)
-        // {
-          while (tree_subscrib.TryReceiveMultipartMessage(ref new_tree_msg));
-          Debug.Log("<color=yellow>"+new_tree_msg[0].ConvertToString()+new_tree_msg[1].ConvertToString()+"</color>");
-          if ("PLACETREE" == new_tree_msg[0].ConvertToString())
-          {
-            if (new_tree_msg.FrameCount >= tree_msg.FrameCount) { tree_msg = new_tree_msg; }
-            Debug.Log("<color=yellow>"+tree_msg[0].ConvertToString()+tree_msg[1].ConvertToString()+"</color>");
-            if (tree_msg.FrameCount != 2) {
-                tree_message = new TreeMessage_t();
-                tree_message.seed = 69;
-                tree_message.bounding_origin = new List<float> { 0, 0 };
-                tree_message.bounding_area = new List<float> { 253, 253 };
-                tree_message.density = (int)Math.Pow(253 / 7, 2);
-                EventParam events = new EventParam { treeMessage = tree_message };
-                terrainTreeManager1.TriggerEvent("placeTreeParam", events);
-                //Thread.Sleep(1000);
-            }
-            else
-            {
-                tree_message = JsonConvert.DeserializeObject<TreeMessage_t>(tree_msg[1].ConvertToString());
-                Debug.Log("<color=blue>tree_message:  "+tree_message.seed.ToString()+"</color>");
-                EventParam events = new EventParam { treeMessage = tree_message };
-                terrainTreeManager1.TriggerEvent("placeTreeParam", events);
-                //Thread.Sleep(1000);
-                sendTreeReady();
-                Debug.Log("<color=green>SendTreeReady</color>");
-            }
-          }
-          else if ("RMTREE" == new_tree_msg[0].ConvertToString())
-          {
-              terrainTreeManager1.TriggerEvent("removeTree");
-              Debug.Log("<color=green>RMTREE</color>");
-          }
+          save_pointcloud.fileName = pointcloud_msg.file_name;
+
+          PointCloudTask(save_pointcloud);
+        }
         //}
       }
     }
