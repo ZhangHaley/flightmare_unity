@@ -159,7 +159,7 @@ namespace RPGFlightmare
 
       var renderRT = (!needsRescale) ? finalRT :
           RenderTexture.GetTemporary(subcam.pixelWidth, subcam.pixelHeight, depth, format, readWrite, antiAliasing);
-      var tex = new Texture2D(width, height, image_mode=="depth" ? TextureFormat.RFloat : TextureFormat.RGB24, false);
+      var tex = new Texture2D(width, height, image_mode=="depth" ? TextureFormat.R16 : TextureFormat.RGB24, false);
 
       var prevActiveRT = RenderTexture.active;
       var prevCameraRT = subcam.targetTexture;
@@ -178,7 +178,7 @@ namespace RPGFlightmare
       }
 
       // read offsreen texture contents into the CPU readable texture
-      tex.ReadPixels(new Rect(0, 0, tex.width, tex.height), 0, 0);
+      tex.ReadPixels(new Rect(0, 0, width, height), 0, 0);
       tex.Apply();
 
       // encode texture into PNG

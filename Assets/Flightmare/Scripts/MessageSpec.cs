@@ -280,9 +280,9 @@ namespace MessageSpec
         public List<float> bounding_area { get; set; }
         public List<float> bounding_origin { get; set; }
 
-        public float desity { get; set; }
+        public float density { get; set; }
 
-        public float seed { get; set; }
+        public int seed { get; set; }
     }
 
     public class TreeReadyMessage_t
@@ -294,7 +294,7 @@ namespace MessageSpec
         }
     }
 
-    public struct EventParam { public TreeMessage_t treeMessage; }
+    public struct EventParam { public TreeMessage_t treeMessage{set;get;}}
 
 }
 

@@ -110,13 +110,13 @@ namespace RPGFlightmare
     /* =====================
     * UNITY PLAYER EVENT HOOKS 
     * =====================
-    */
-    void OnEnable()
-    {
-        terrainTreeManager1.StartListening("placeTree",terrainTreeManager1.placeFunction);
-        terrainTreeManager1.StartListening("removeTree",terrainTreeManager1.removeFunction);
-        terrainTreeManager1.StartListening("placeTreeParam", terrainTreeManager1.placeFunctionParam);
-    }
+    // */
+    // void OnEnable()
+    // {
+    //     terrainTreeManager1.StartListening("placeTree",terrainTreeManager1.placeFunction);
+    //     terrainTreeManager1.StartListening("removeTree",terrainTreeManager1.removeFunction);
+    //     terrainTreeManager1.StartListening("placeTreeParam", terrainTreeManager1.placeFunctionParam);
+    // }
         // Function called when Unity Player is loaded.
         // Only execute once.
     public void Start()
@@ -174,9 +174,12 @@ namespace RPGFlightmare
 
       scene_schedule = GetComponent<sceneSchedule>();
 
-      terrain_manager = GetComponent<terrainTreeManager1>();      
+      //terrain_manager = GetComponent<terrainTreeManager1>();      
       
-      terrainTreeManager1.TriggerEvent("removeTree");
+
+      terrainTreeManager1.StartListening("placeTree",terrainTreeManager1.placeFunction);
+      terrainTreeManager1.StartListening("removeTree",terrainTreeManager1.removeFunction);
+      terrainTreeManager1.StartListening("placeTreeParam", terrainTreeManager1.placeFunctionParam);
 
       StartCoroutine(WaitForRender());
       Debug.Log("End Start");
@@ -195,7 +198,6 @@ namespace RPGFlightmare
         // Check if this frame should be rendered.
         if (internal_state.readyToRender && sub_message != null)
         {
-          Debug.Log("Ready to Render.");
           // Read the frame from the GPU backbuffer and send it via ZMQ.
           sendFrameOnWire();
         }
@@ -347,61 +349,25 @@ namespace RPGFlightmare
     */
     void Update()
     {
+      //Debug.Log("<color=pink>update CameraContol"+Time.deltaTime+"</color>");
 
       
-      // if(!placeFlag)
-      // {
-      //   //terrainTreeManager1.TriggerEvent("placeTree");
-      //   EventParam events = new EventParam();
-      //   TreeMessage_t message_T = new TreeMessage_t();
-      //   message_T.seed = 0.1f;
-      //   message_T.bounding_origin = new List<float> { -10, 0 };
-      //   message_T.bounding_area = new List<float> { 253, 253 };
-      //   message_T.desity = (float)Math.Pow(253/7,2);
-      //   events.treeMessage = message_T;
-      //   terrainTreeManager1.TriggerEvent("placeTreeParam",events);
-      //   terrainTreeManager1.TriggerEvent("removeTree");
-      //   //terrainTreeManager1.TriggerEvent("removeTree");
-      //   placeFlag =true;
-      //   Debug.Log("<color=bule>Placeds trees</color>");
-      // }
-      
-      
-
-      if (tree_subscrib.HasIn)
+      if(!placeFlag)
       {
-        var tree_msg = new NetMQMessage();
-        var new_tree_msg = new NetMQMessage();
-        bool received_tree_packet = tree_subscrib.TryReceiveMultipartMessage(new TimeSpan(0, 0, connection_timeout_seconds), ref new_tree_msg);
-        //有数据正在接收
-        //while (tree_subscrib.TryReceiveMultipartMessage(ref new_tree_msg));
-        //等待数据接受完成,保证下一次更新不会进入判断
-        if (received_tree_packet)
-          {
-            if ("PLACETREE" == new_tree_msg[0].ConvertToString())
-            {
-              if (new_tree_msg.FrameCount >= tree_msg.FrameCount) { tree_msg = new_tree_msg; }
-              if (tree_msg.FrameCount != 2) {
-                  tree_message = new TreeMessage_t();
-                  tree_message.seed = 0.1f;
-                  tree_message.bounding_origin = new List<float> { 0, 0 };
-                  tree_message.bounding_area = new List<float> { 253, 253 };
-                  tree_message.desity = (float)Math.Pow(253 / 7, 2);
-                  EventParam events = new EventParam { treeMessage = tree_message };
-                  terrainTreeManager1.TriggerEvent("placeTreeParam", events);
-              }
-              else{
-                  tree_message = JsonConvert.DeserializeObject<TreeMessage_t>(tree_msg[1].ConvertToString());
-                  EventParam events = new EventParam { treeMessage = tree_message };
-                  terrainTreeManager1.TriggerEvent("placeTreeParam", events);
-                  sendTreeReady();
-              }
-            }
-            else if ("RMTREE" == new_tree_msg[0].ConvertToString())
-            {
-                terrainTreeManager1.TriggerEvent("removeTree");
-            }
-          }
+        // //terrainTreeManager1.TriggerEvent("placeTree");
+        // EventParam events = new EventParam();
+        // TreeMessage_t message_T = new TreeMessage_t();
+        // message_T.seed = 0.1f;
+        // message_T.bounding_origin = new List<float> { -10, 0 };
+        // message_T.bounding_area = new List<float> { 253, 253 };
+        // message_T.desity = (float)Math.Pow(253/7,2);
+        // events.treeMessage = message_T;
+        terrainTreeManager1.TriggerEvent("removeTree");
+        // terrainTreeManager1.TriggerEvent("placeTreeParam",events);
+        // //terrainTreeManager1.TriggerEvent("removeTree");
+        // //terrainTreeManager1.TriggerEvent("removeTree");
+        placeFlag =true;
+        // Debug.Log("<color=bule>Placeds trees</color>");
       }
       if (pull_socket.HasIn || socket_initialized)
       {
@@ -439,7 +405,7 @@ namespace RPGFlightmare
 
         // Check if this is the latest message
         while (pull_socket.TryReceiveMultipartMessage(ref new_msg));
-        Debug.Log("<color=yellow>"+new_msg[0].ConvertToString()+new_msg[1].ConvertToString()+"</color>");
+        //Debug.Log("<color=yellow>"+new_msg[0].ConvertToString()+new_msg[1].ConvertToString()+"</color>");
 
         if ("Pose" == new_msg[0].ConvertToString())
         {
@@ -493,10 +459,52 @@ namespace RPGFlightmare
           PointCloudTask(save_pointcloud);
         }
       }
-      else
+      // else
+      // {
+      //   // Throttle to 10hz when idle
+      //   Thread.Sleep(1); // [ms]
+      // }
+      if (tree_subscrib.HasIn)
       {
-        // Throttle to 10hz when idle
-        Thread.Sleep(1); // [ms]
+        var tree_msg = new NetMQMessage();
+        var new_tree_msg = new NetMQMessage();
+        bool received_tree_packet = tree_subscrib.TryReceiveMultipartMessage(new TimeSpan(0, 0, connection_timeout_seconds), ref new_tree_msg);
+
+        // if (received_tree_packet)
+        // {
+          while (tree_subscrib.TryReceiveMultipartMessage(ref new_tree_msg));
+          Debug.Log("<color=yellow>"+new_tree_msg[0].ConvertToString()+new_tree_msg[1].ConvertToString()+"</color>");
+          if ("PLACETREE" == new_tree_msg[0].ConvertToString())
+          {
+            if (new_tree_msg.FrameCount >= tree_msg.FrameCount) { tree_msg = new_tree_msg; }
+            Debug.Log("<color=yellow>"+tree_msg[0].ConvertToString()+tree_msg[1].ConvertToString()+"</color>");
+            if (tree_msg.FrameCount != 2) {
+                tree_message = new TreeMessage_t();
+                tree_message.seed = 69;
+                tree_message.bounding_origin = new List<float> { 0, 0 };
+                tree_message.bounding_area = new List<float> { 253, 253 };
+                tree_message.density = (int)Math.Pow(253 / 7, 2);
+                EventParam events = new EventParam { treeMessage = tree_message };
+                terrainTreeManager1.TriggerEvent("placeTreeParam", events);
+                //Thread.Sleep(1000);
+            }
+            else
+            {
+                tree_message = JsonConvert.DeserializeObject<TreeMessage_t>(tree_msg[1].ConvertToString());
+                Debug.Log("<color=blue>tree_message:  "+tree_message.seed.ToString()+"</color>");
+                EventParam events = new EventParam { treeMessage = tree_message };
+                terrainTreeManager1.TriggerEvent("placeTreeParam", events);
+                //Thread.Sleep(1000);
+                sendTreeReady();
+                Debug.Log("<color=green>SendTreeReady</color>");
+            }
+          }
+          else if ("RMTREE" == new_tree_msg[0].ConvertToString())
+          {
+              terrainTreeManager1.TriggerEvent("removeTree");
+              Debug.Log("<color=green>RMTREE</color>");
+          }
+        //}
       }
     }
 
@@ -584,11 +592,11 @@ namespace RPGFlightmare
     }
     void loadScene()
     {
-      // scene_schedule.destoryTimeLine();
-      // if(settings.scene_id != scene_schedule.scenes.default_scene_id)
-      // {
-      scene_schedule.loadScene(settings.scene_id, false);
-      // }
+      //scene_schedule.destoryTimeLine();
+      if(settings.scene_id != scene_schedule.scenes.default_scene_id)
+      {
+        scene_schedule.loadScene(settings.scene_id, false);
+      }
     }
 
     void setCameraPostProcessSettings()
@@ -617,7 +625,7 @@ namespace RPGFlightmare
       {
         foreach (Camera_t camera in vehicle_i.cameras)
         {
-          Debug.Log(camera.ID);
+          //Debug.Log(camera.ID);
           // Get camera object
           GameObject obj = internal_state.getGameobject(camera.ID, HD_camera);
           // 
@@ -634,7 +642,7 @@ namespace RPGFlightmare
           var T_BC = ListToMatrix4x4(camera.T_BC);
           // translate camera from body frame to world frame
           var T_WC = T_WB * T_BC;
-          Debug.Log(T_WC);
+          //Debug.Log(T_WC);
           // compute camera position and rotation with respect to world frame
           var position = new Vector3(T_WC[0, 3], T_WC[1, 3], T_WC[2, 3]);
           var rotation = T_WC.rotation;
@@ -683,12 +691,12 @@ namespace RPGFlightmare
             // apply translation and rotation;
             var translation = ListToVector3(vehicle_i.position);
             var quaternion = ListToQuaternion(vehicle_i.rotation);
-            Debug.Log(vehicle_i.ID);
-            Debug.Log(vehicle_i.rotation[0]);
-            Debug.Log(vehicle_i.rotation[1]);
-            Debug.Log(vehicle_i.rotation[2]);
-            Debug.Log(vehicle_i.rotation[3]);
-            Debug.Log(quaternion.eulerAngles);
+            // Debug.Log(vehicle_i.ID);
+            // Debug.Log(vehicle_i.rotation[0]);
+            // Debug.Log(vehicle_i.rotation[1]);
+            // Debug.Log(vehicle_i.rotation[2]);
+            // Debug.Log(vehicle_i.rotation[3]);
+            // Debug.Log(quaternion.eulerAngles);
 
             // Quaternion To Matrix conversion failed because input Quaternion(=quaternion) is invalid
             // create valid Quaternion from Euler angles
@@ -867,14 +875,14 @@ namespace RPGFlightmare
       foreach (var obj_state in settings.objects)
       {
         // GameObject prefab = Resources.Load(obj_state.prefabID) as GameObject;
-        Debug.Log("obj_state id : " + obj_state.ID);
+        //Debug.Log("obj_state id : " + obj_state.ID);
         GameObject obj = internal_state.getGameobject(obj_state.ID, gate_template);
         obj.transform.localScale = ListToVector3(obj_state.size);
         // obj.layer = 9;
       }
       foreach (var vehicle in settings.vehicles)
       {
-        Debug.Log("vehicle id : " + vehicle.ID);
+        //Debug.Log("vehicle id : " + vehicle.ID);
         GameObject obj = internal_state.getGameobject(vehicle.ID, quad_template);
         obj.transform.SetPositionAndRotation(ListToVector3(vehicle.position), ListToQuaternion(vehicle.rotation));
         obj.transform.localScale = ListToVector3(vehicle.size);

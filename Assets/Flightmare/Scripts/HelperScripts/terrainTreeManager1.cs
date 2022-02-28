@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System;
 using UnityEngine;
 using Random = UnityEngine.Random;
-
+using System.Threading;
 using MessageSpec;
 
 
@@ -181,11 +181,11 @@ namespace RPGFlightmare
 
          void Awake()
         {
-            terrain = Terrain.activeTerrain;  
-            Clear(terrain);
+
         }
         void Start()
         {
+
             // MassTreePlacement mtp = new MassTreePlacement();
             // PlaceRandomTrees(terrain, mtp);
         }
@@ -201,28 +201,26 @@ namespace RPGFlightmare
             {
                 case PLACE:         PlaceTree();    Option = ORIGIN;    break;
                 case REMOVE:        terrain = Terrain.activeTerrain; 
-                                    Clear(terrain);    Option = ORIGIN;    break;
-                case PLACE_PARAM:   PlaceTree(event_param);    Option = ORIGIN;     break;
-                case ORIGIN:        return;
+                                    Clear(terrain);    Option = ORIGIN;
+                                    //Debug.Log("<color=red>triggle RMTREE "+Time.deltaTime+"</color>");
+                                    break;
+                case PLACE_PARAM:   terrain = Terrain.activeTerrain;
+                                    //PlaceTree();
+                                    PlaceRandomTrees(terrain, mtp, event_param);
+                                    // PlaceTree(terrain,event_param);    
+                                    Option = ORIGIN;
+                                    Thread.Sleep(1000);
+                                    //Debug.Log("<color=red>triggle terrainManager1 PlaceTree"+Time.deltaTime+"</color>");
+                                     break;
+                case ORIGIN:        break;
             }
         }
-       public static void PlaceTree()   { PlaceRandomTrees(terrain, mtp);}
-        public static void PlaceTree(EventParam eventParam) 
-        {
-            event_param = eventParam;
-            terrain = Terrain.activeTerrain;
-            mtp = new MassTreePlacement();
-            PlaceRandomTrees(terrain, mtp, event_param);
-        }
+       public void PlaceTree()   { PlaceRandomTrees(terrain, mtp);}
 
         public static void Clear(Terrain terrain)
         {
-            if(terrain==null)
-                return;
-            else{
-                terrain.terrainData.treeInstances = new TreeInstance[0];
-                terrain.Flush();
-            }
+            terrain.terrainData.treeInstances = new TreeInstance[0];
+            terrain.Flush();
             //刷新更改
         }
 
@@ -244,8 +242,6 @@ namespace RPGFlightmare
             var array = new TreeInstance[mtp.Count];
             var i = 0;
             var terrainScaleY = data.size.y;
-            Debug.Log("terrainScaleY");
-            Debug.Log(terrainScaleY);
             while (i < array.Length)
             {
                 // stop if process have run for over X seconds
@@ -299,6 +295,7 @@ namespace RPGFlightmare
 
         public static void PlaceRandomTrees(Terrain terrain, MassTreePlacement mtp,EventParam eventParam)
         {
+            //Debug.Log("</color=bule>eventParam.TreeMessage:  "+event_param.treeMessage.desity.ToString()+"</color>");
             var data = terrain.terrainData;
             var num = data.treePrototypes.Length;
             var terrainPosition = terrain.transform.position;
@@ -313,14 +310,12 @@ namespace RPGFlightmare
             var start = DateTime.Now;
 
             var treeMessage = eventParam.treeMessage;
-            mtp.Count = (int)treeMessage.desity;
+            mtp.Count = (int)treeMessage.density;
             var array = new TreeInstance[mtp.Count];
             var i = 0;
             var terrainScaleY = data.size.y;
             var terrainScaleX = data.size.x;
             var terrainScaleZ = data.size.z;
-            Debug.Log("terrainScaleY");
-            Debug.Log(terrainScaleY);
             while (i < array.Length)
             {
                 // stop if process have run for over X seconds
